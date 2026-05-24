@@ -1,6 +1,10 @@
 import { useEffect, useState } from 'react';
 import api from '../api/axios';
 
+// AOS Library Imports
+import AOS from 'aos';
+import 'aos/dist/aos.css';
+
 // Components Import
 import Navbar from '../components/Navbar';
 import HeroSection from '../components/HeroSection';
@@ -11,13 +15,41 @@ import BrandAutoSlider from '../components/BrandAutoSlider';
 import { ReviewSection, BlogSection } from '../components/ReviewAndBlogSection';
 import Footer from '../components/Footer';
 
+// ========================================================
+// Reusable Section Wrapper (With Scroll Animation Option)
+// ========================================================
+const SectionWrapper = ({ children, isBlue, id, aos = "fade-up" }) => {
+  return (
+    <section 
+      id={id} 
+      className={`${isBlue ? 'bg-[#F4F9FF]' : 'bg-white'} py-12 md:py-16 border-b border-gray-100/50 w-full overflow-hidden`}
+    >
+      {/* data-aos অ্যাট্রিবিউট দিয়ে অ্যানিমেশন ট্রিগার করা হচ্ছে */}
+      <div className="max-w-7xl mx-auto px-4" data-aos={aos}>
+        {children}
+      </div>
+    </section>
+  );
+};
+
 const Home = () => {
   const [homepageData, setHomepageData] = useState({ limited_sale: [], exclusive_products: [] });
   const [categories, setCategories] = useState([]);
   const [brands, setBrands] = useState([]);
   const [banners, setBanners] = useState([]);
-  const [dynamicSections, setDynamicSections] = useState([]); // অ্যাডমিন প্যানেলের ডায়নামিক সেকশনের জন্য
+  const [dynamicSections, setDynamicSections] = useState([]); 
 
+  // Initialize AOS Animation
+  useEffect(() => {
+    AOS.init({
+      duration: 800, // অ্যানিমেশন কতক্ষণ ধরে হবে (0.8s)
+      offset: 100, // স্ক্রিনে এলিমেন্ট ঢোকার ১০০px পর অ্যানিমেশন শুরু হবে
+      once: true, // স্ক্রল করে উপরে গেলে আবার হাইড হবে না (একবারই অ্যানিমেশন হবে)
+      easing: 'ease-out-cubic',
+    });
+  }, []);
+
+  // Fetch Data
   useEffect(() => {
     const fetchAllData = async () => {
       try {
@@ -28,12 +60,13 @@ const Home = () => {
           api.get('products/banners/')
         ]);
         
-        setHomepageData(homeRes.data);
-        setCategories(catRes.data);
-        setBrands(brandRes.data);
-        setBanners(bannerRes.data);
+        const extractData = (data) => Array.isArray(data) ? data : (data?.results || []);
         
-        // যদি ব্যাকএন্ডে dynamic_sections থাকে, তবে সেটা এখানে সেট করবেন
+        setHomepageData(homeRes.data);
+        setCategories(extractData(catRes.data));
+        setBrands(extractData(brandRes.data));
+        setBanners(extractData(bannerRes.data));
+        
         if(homeRes.data.dynamic_sections) {
             setDynamicSections(homeRes.data.dynamic_sections);
         }
@@ -45,11 +78,14 @@ const Home = () => {
     fetchAllData();
   }, []);
 
-  const heroBanners = banners.filter(b => b.position === 'hero_carousel' || b.position.includes('hero_side'));
-  const midBanners = banners.filter(b => b.position === 'mid_banner').slice(0, 2);
+  // Banner Distribution Logic
+  const heroBanners = banners.filter(b => b.position.includes('hero'));
+  const categoryBanners = banners.filter(b => b.position === 'category_banner').slice(0, 2); 
+  const brandBanner = banners.filter(b => b.position === 'brand_banner').slice(0, 1);
+  const preReviewBanners = banners.filter(b => b.position === 'pre_review_banner').slice(0, 2);
 
   return (
-    <div className="bg-[#f8f9fa] min-h-screen font-sans">
+    <div className="bg-[#f8f9fa] min-h-screen font-sans flex flex-col">
       <Navbar />
       
       {/* 1. Hero Section */}
@@ -58,45 +94,101 @@ const Home = () => {
       {/* 2. Moving Text Bar */}
       <MovingText />
 
-      <main className="max-w-7xl mx-auto px-4">
+      <main className="w-full flex-1">
         
-        {/* 3. Limited Sale (5+5, Load More) */}
-        <ProductSection title="Limited Sale ⚡" products={homepageData.limited_sale} />
+        {/* 3. Limited Sale */}
+        <SectionWrapper isBlue={false} aos="fade-up">
+          <ProductSection title="Limited Sale ⚡" products={homepageData.limited_sale} />
+        </SectionWrapper>
 
-        {/* 4. Shop by Categories (Round Icons) */}
-        <CategorySlider categories={categories} />
+        {/* 4. Shop by Categories */}
+        <SectionWrapper isBlue={true} id="categories-section" aos="fade-up">
+          <CategorySlider categories={categories} />
+        </SectionWrapper>
 
-        {/* 5. Mid Banners */}
-        {midBanners.length > 0 && (
-          <section className="grid grid-cols-1 md:grid-cols-2 gap-4 py-8">
-            {midBanners.map(banner => (
-              <a key={banner.id} href={banner.link || '#'} className="block h-48 md:h-64 rounded-xl overflow-hidden shadow-sm hover:opacity-90 transition">
-                <img src={banner.image} alt={banner.title} className="w-full h-full object-cover hover:scale-105 transition-transform duration-500" />
-              </a>
-            ))}
-          </section>
+        {/* Banner Layout 1: Category এর পরে (50% - 50%) */}
+        {categoryBanners.length > 0 && (
+          <SectionWrapper isBlue={false} aos="">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
+              {categoryBanners.map((banner, index) => (
+                <a 
+                  key={banner.id} 
+                  href={banner.link || '#'} 
+                  data-aos={index === 0 ? "fade-right" : "fade-left"} // প্রথমটি ডান থেকে, পরেরটি বাম থেকে আসবে
+                  className="block h-56 md:h-64 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+                >
+                  <img src={banner.image} alt={banner.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                </a>
+              ))}
+            </div>
+          </SectionWrapper>
         )}
 
-        {/* 6. Auto Moving Brands */}
-        <BrandAutoSlider brands={brands} />
+        {/* 5. Auto Moving Brands */}
+        <SectionWrapper isBlue={true} aos="zoom-in-up">
+          <BrandAutoSlider brands={brands} />
+        </SectionWrapper>
 
-        {/* 7. Exclusive Products (5+5, Load More) */}
-        <ProductSection title="Exclusive Products 🌟" products={homepageData.exclusive_products} />
+        {/* Banner Layout 2: Brands এর পরে (100% Width) */}
+        {brandBanner.length > 0 && (
+          <SectionWrapper isBlue={false} aos="">
+            <a 
+              href={brandBanner[0].link || '#'} 
+              data-aos="zoom-in" // এটি জুম হয়ে আসবে
+              className="block h-80 md:h-[400px] lg:h-[450px] w-full rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+            >
+              <img src={brandBanner[0].image} alt={brandBanner[0].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+            </a>
+          </SectionWrapper>
+        )}
 
-        {/* 8. Dynamic Sections from Admin Panel */}
+        {/* 6. Exclusive Products */}
+        <SectionWrapper isBlue={true} aos="fade-up">
+          <ProductSection title="Exclusive Products 🌟" products={homepageData.exclusive_products} />
+        </SectionWrapper>
+
+        {/* 7. Dynamic Sections from Admin Panel */}
         {dynamicSections.map((section, index) => (
-          <ProductSection key={index} title={section.title} products={section.products} />
+          <SectionWrapper key={index} isBlue={index % 2 === 0} aos="fade-up">
+            <ProductSection title={section.title} products={section.products} />
+          </SectionWrapper>
         ))}
 
-        {/* 9. Customer Reviews */}
-         <ReviewSection reviews={homepageData.reviews} />
+        {/* Banner Layout 3: Review Section এর আগে (60% - 40%) */}
+        {preReviewBanners.length === 2 && (
+          <SectionWrapper isBlue={false} aos="">
+            <div className="flex flex-col md:flex-row gap-6 overflow-hidden">
+              <a 
+                href={preReviewBanners[0].link || '#'} 
+                data-aos="fade-right"
+                className="w-full md:w-[60%] block h-56 md:h-72 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+              >
+                <img src={preReviewBanners[0].image} alt={preReviewBanners[0].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              </a>
+              <a 
+                href={preReviewBanners[1].link || '#'} 
+                data-aos="fade-left"
+                className="w-full md:w-[40%] block h-56 md:h-72 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+              >
+                <img src={preReviewBanners[1].image} alt={preReviewBanners[1].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+              </a>
+            </div>
+          </SectionWrapper>
+        )}
 
-         {/* 10. Blogs */}
-        <BlogSection blogs={homepageData.blogs} />
+        {/* 8. Customer Reviews */}
+        <SectionWrapper isBlue={true} id="reviews-section" aos="fade-up">
+         <ReviewSection reviews={homepageData.reviews} />
+        </SectionWrapper>
+
+        {/* 9. Blogs */}
+        <SectionWrapper isBlue={false} id="blog-section" aos="fade-up">
+          <BlogSection blogs={homepageData.blogs} />
+        </SectionWrapper>
 
       </main>
       
-      {/* 11. Footer */}
+      {/* 10. Footer */}
       <Footer />
     </div>
   );
