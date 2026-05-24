@@ -1,4 +1,4 @@
-import React, { createContext, useState, useContext } from 'react';
+import { createContext, useState, useContext } from 'react';
 
 const CartContext = createContext();
 
@@ -7,38 +7,38 @@ export const CartProvider = ({ children }) => {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [toastMessage, setToastMessage] = useState("");
 
-  // ছোট পপআপ দেখানোর ফাংশন
   const showToast = (message) => {
     setToastMessage(message);
-    setTimeout(() => setToastMessage(""), 3000); // ৩ সেকেন্ড পর পপআপ চলে যাবে
+    setTimeout(() => setToastMessage(""), 3000);
   };
 
-  // কার্টে অ্যাড করার ফাংশন
-  const addToCart = (product) => {
-    setCartItems((prev) => {
-      const existingItem = prev.find((item) => item.id === product.id);
-      if (existingItem) {
-        return prev.map((item) =>
-          item.id === product.id ? { ...item, quantity: item.quantity + 1 } : item
-        );
+  const addToCart = (newItem) => {
+    setCartItems((prevItems) => {
+      // একই প্রোডাক্ট এবং ভ্যারিয়েন্ট চেক
+      const existingItemIndex = prevItems.findIndex(
+        (item) => item.id === newItem.id && item.variant === newItem.variant
+      );
+
+      if (existingItemIndex >= 0) {
+        const updatedItems = [...prevItems];
+        // নতুন কোয়ান্টিটি যোগ করা হচ্ছে
+        updatedItems[existingItemIndex].quantity += newItem.quantity; 
+        return updatedItems;
+      } else {
+        return [...prevItems, newItem];
       }
-      return [...prev, { ...product, quantity: 1 }];
     });
-    // ড্রয়ার ওপেন না করে শুধু পপআপ দেখাবো
-    showToast("Product added to cart successfully!");
+    showToast("Product added to cart!");
   };
 
-  // কোয়ান্টিটি বাড়ানোর ফাংশন (+)
   const incrementQuantity = (id) => {
     setCartItems(prev => prev.map(item => item.id === id ? { ...item, quantity: item.quantity + 1 } : item));
   };
 
-  // কোয়ান্টিটি কমানোর ফাংশন (-)
   const decrementQuantity = (id) => {
     setCartItems(prev => prev.map(item => item.id === id && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item));
   };
 
-  // কার্ট থেকে মুছে ফেলার ফাংশন
   const removeFromCart = (id) => {
     setCartItems(prev => prev.filter(item => item.id !== id));
   };
