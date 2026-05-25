@@ -14,12 +14,19 @@ const ProductSection = ({ title, products = [] }) => {
 
   const displayedProducts = products.slice(0, visibleCount);
 
+  // Title কে দুই ভাগে ভাগ করার লজিক (প্রথম শব্দ এক কালার, পরেরগুলো আরেক কালার)
+  const titleWords = title ? title.trim().split(' ') : [];
+  const firstWord = titleWords[0] || '';
+  const remainingWords = titleWords.slice(1).join(' ') || '';
+
   return (
     <section className="py-6 md:py-8 w-full">
       {/* Section Title */}
-      <div className="flex items-center justify-between mb-5 md:mb-6">
-        <h2 className="text-lg md:text-2xl font-black text-gray-800 uppercase tracking-wide border-l-4 border-blue-600 pl-3 leading-tight">
-          {title}
+      <div className="flex items-center justify-between mb-6 md:mb-8">
+        {/* সাইজ text-2xl থেকে text-4xl পর্যন্ত রেসপন্সিভ করা হয়েছে */}
+        <h2 className="text-2xl md:text-3xl lg:text-4xl font-black uppercase tracking-wide border-l-[5px] border-blue-600 pl-4 leading-tight">
+          <span className="text-gray-800">{firstWord}</span>{" "}
+          {remainingWords && <span className="text-blue-600">{remainingWords}</span>}
         </h2>
       </div>
       

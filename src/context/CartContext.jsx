@@ -14,29 +14,31 @@ export const CartProvider = ({ children }) => {
 
   const addToCart = (newItem) => {
     setCartItems((prevItems) => {
-      // একই প্রোডাক্ট এবং ভ্যারিয়েন্ট চেক
       const existingItemIndex = prevItems.findIndex(
         (item) => item.id === newItem.id && item.variant === newItem.variant
       );
 
+      // Safe number conversion to prevent NaN
+      const price = Number(newItem.currentPrice) || 0;
+      const qty = Number(newItem.quantity) || 1;
+
       if (existingItemIndex >= 0) {
         const updatedItems = [...prevItems];
-        // নতুন কোয়ান্টিটি যোগ করা হচ্ছে
-        updatedItems[existingItemIndex].quantity += newItem.quantity; 
+        updatedItems[existingItemIndex].quantity += qty; 
         return updatedItems;
       } else {
-        return [...prevItems, newItem];
+        return [...prevItems, { ...newItem, currentPrice: price, quantity: qty }];
       }
     });
     showToast("Product added to cart!");
   };
 
   const incrementQuantity = (id) => {
-    setCartItems(prev => prev.map(item => item.id === id ? { ...item, quantity: item.quantity + 1 } : item));
+    setCartItems(prev => prev.map(item => item.id === id ? { ...item, quantity: Number(item.quantity) + 1 } : item));
   };
 
   const decrementQuantity = (id) => {
-    setCartItems(prev => prev.map(item => item.id === id && item.quantity > 1 ? { ...item, quantity: item.quantity - 1 } : item));
+    setCartItems(prev => prev.map(item => item.id === id && Number(item.quantity) > 1 ? { ...item, quantity: Number(item.quantity) - 1 } : item));
   };
 
   const removeFromCart = (id) => {

@@ -6,6 +6,8 @@ import { useCart } from '../context/CartContext';
 
 const Navbar = () => {
   const [categories, setCategories] = useState([]);
+  const [allProducts, setAllProducts] = useState([]); // সার্চের জন্য সব প্রোডাক্ট স্টোর করতে
+  const [filteredResults, setFilteredResults] = useState([]); // সার্চ রেজাল্ট
   const [searchQuery, setSearchQuery] = useState("");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -19,13 +21,27 @@ const Navbar = () => {
     incrementQuantity, decrementQuantity, removeFromCart, toastMessage 
   } = useCart();
 
-  const cartTotal = cartItems.reduce((total, item) => total + (Number(item.currentPrice) * item.quantity), 0);
+  // [পরিবর্তন] NaN ফিক্স করা হয়েছে: currentPrice এবং quantity সেফলি নাম্বার করা হয়েছে
+  const cartTotal = cartItems.reduce((total, item) => {
+    const price = Number(item.currentPrice) || 0;
+    const qty = Number(item.quantity) || 0;
+    return total + (price * qty);
+  }, 0);
 
-  // Categories Fetch
+  // Initial Data Fetch (Categories & Products for live search)
   useEffect(() => {
+    // ক্যাটাগরি ফেচ
     api.get('products/categories/')
       .then(res => setCategories(res.data))
       .catch(err => console.error("Navbar category fetch error:", err));
+
+    // লাইভ সার্চের জন্য প্রোডাক্ট লিস্ট ফেচ
+    api.get('products/list/')
+      .then(res => {
+        const data = Array.isArray(res.data) ? res.data : (res.data?.results || []);
+        setAllProducts(data);
+      })
+      .catch(err => console.error("Search products fetch error:", err));
   }, []);
 
   // =====================================
@@ -45,6 +61,43 @@ const Navbar = () => {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // =====================================
+  // Live Search Filter Logic
+  // =====================================
+  const handleLiveSearch = (e) => {
+    const query = e.target.value;
+    setSearchQuery(query);
+
+    if (query.trim() === '') {
+      setFilteredResults([]);
+      return;
+    }
+
+    const lowerCaseQuery = query.toLowerCase();
+
+    const results = allProducts.filter((product) => {
+      // Name Match
+      const matchName = product.name?.toLowerCase().includes(lowerCaseQuery);
+      
+      // Brand Match
+      const matchBrand = product.brand_details?.name?.toLowerCase().includes(lowerCaseQuery);
+      
+      // Category Match (Checking if category is an object or ID)
+      let categoryName = "";
+      if (typeof product.category === 'object') {
+        categoryName = product.category?.name || "";
+      } else {
+        const cat = categories.find(c => c.id === product.category);
+        if (cat) categoryName = cat.name;
+      }
+      const matchCategory = categoryName.toLowerCase().includes(lowerCaseQuery);
+
+      return matchName || matchBrand || matchCategory;
+    });
+
+    setFilteredResults(results.slice(0, 6)); // ম্যাক্সিমাম ৬টি রেজাল্ট দেখাবে
+  };
+
   const visibleCategories = categories.slice(0, 8);
   const moreCategories = categories.slice(8);
 
@@ -55,7 +108,7 @@ const Navbar = () => {
     return `${backendBaseUrl}${path}`;
   };
 
-  const handleSearch = (e) => {
+  const handleSearchSubmit = (e) => {
     e.preventDefault();
     if(searchQuery.trim()) {
       setIsSearchOpen(false);
@@ -92,13 +145,14 @@ const Navbar = () => {
 
       {/* ========================================
         Main Header (Scroll-Aware) 
+        [পরিবর্তন] ডিফল্ট পুরো হোয়াইট এবং স্ক্রল করলে হালকা ব্লু ও গ্লাস ইফেক্ট 
         ========================================
       */}
       <header 
         className={`sticky top-0 z-40 relative transition-all duration-300 ${
           isScrolled 
             ? 'bg-blue-50/80 backdrop-blur-md shadow-lg border-b border-blue-100/50' // স্ক্রল করলে গ্লাস ইফেক্ট ও হালকা ব্লু
-            : 'bg-white shadow-sm border-b border-blue-50' // ডিফল্ট সাদা
+            : 'bg-white shadow-sm border-b border-gray-100' // ডিফল্ট সম্পূর্ণ সাদা
         }`}
       >
         
@@ -155,15 +209,24 @@ const Navbar = () => {
           <div className="flex-1 flex justify-end items-center gap-5 md:gap-6 text-sm font-semibold text-gray-600">
             
             <button 
-              onClick={() => setIsSearchOpen(!isSearchOpen)} 
+              onClick={() => {
+                setIsSearchOpen(!isSearchOpen);
+                if(isSearchOpen) {
+                  setSearchQuery('');
+                  setFilteredResults([]);
+                }
+              }} 
               className={`cursor-pointer transition-colors p-2 rounded-full ${isSearchOpen ? 'bg-blue-100 text-blue-700' : 'hover:bg-blue-100 hover:text-blue-700'}`}
             >
               {isSearchOpen ? <X size={20} /> : <Search size={20} />}
             </button>
 
-            <div className="hidden lg:flex items-center gap-2 cursor-pointer hover:text-blue-600 transition">
-              <User size={20} />
-              <span>Login</span>
+            {/* [পরিবর্তন] Login এবং Register লিংক করা হয়েছে */}
+            <div className="hidden lg:flex items-center gap-3">
+              <User size={20} className="text-gray-500" />
+              <Link to="/login" className="hover:text-blue-600 transition font-bold">Login</Link>
+              <span className="text-gray-300">|</span>
+              <Link to="/register" className="hover:text-blue-600 transition font-bold">Register</Link>
             </div>
             
             <a href="https://wa.me/8801740109551" target="_blank" rel="noreferrer" className="cursor-pointer hover:text-green-500 transition hidden sm:block">
@@ -183,21 +246,92 @@ const Navbar = () => {
           </div>
         </div>
 
-        {/* Animated Search Bar Overlay */}
-        <div className={`absolute left-0 w-full bg-white shadow-[0_10px_20px_-10px_rgba(0,0,0,0.1)] overflow-hidden transition-all duration-300 ease-in-out z-30 ${isSearchOpen ? 'max-h-24 opacity-100 py-4' : 'max-h-0 opacity-0 py-0'}`}>
-          <form onSubmit={handleSearch} className="max-w-3xl mx-auto px-4 relative flex items-center">
-            <input 
-              type="text" 
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search for your favorite products..." 
-              className="w-full bg-gray-50 text-gray-800 rounded-full py-3.5 pl-6 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 shadow-inner border border-gray-100 text-base font-medium"
-              autoFocus={isSearchOpen}
-            />
-            <button type="submit" className="absolute right-6 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">
-              <Search size={22} />
-            </button>
-          </form>
+        {/* =====================================
+            Animated Search Bar Overlay & Live Search Results
+        ========================================= */}
+        <div className={`absolute left-0 w-full bg-white shadow-[0_20px_40px_-15px_rgba(0,0,0,0.1)] transition-all duration-300 ease-in-out z-50 border-t border-blue-50 ${isSearchOpen ? 'max-h-[80vh] opacity-100 py-6 overflow-y-auto' : 'max-h-0 opacity-0 py-0 overflow-hidden border-transparent'}`}>
+          <div className="max-w-3xl mx-auto px-4">
+            
+            {/* Search Input */}
+            <form onSubmit={handleSearchSubmit} className="relative flex items-center">
+              <input 
+                type="text" 
+                value={searchQuery}
+                onChange={handleLiveSearch}
+                placeholder="Search by product, brand, or category..." 
+                className="w-full bg-gray-50 text-gray-800 rounded-full py-3.5 pl-6 pr-12 focus:outline-none focus:ring-2 focus:ring-blue-500 border border-gray-200 shadow-inner text-base font-bold transition-all"
+                autoFocus={isSearchOpen}
+              />
+              <button type="submit" className="absolute right-6 text-gray-400 hover:text-blue-600 cursor-pointer transition-colors">
+                <Search size={22} />
+              </button>
+            </form>
+
+            {/* Live Search Popup / Dropdown list */}
+            {searchQuery.trim() !== '' && (
+              <div className="mt-5 border border-gray-100 rounded-2xl bg-white shadow-lg overflow-hidden">
+                {filteredResults.length > 0 ? (
+                  <div className="flex flex-col">
+                    {/* Header */}
+                    <div className="bg-gray-50 px-5 py-2.5 text-xs font-bold text-gray-500 uppercase tracking-wider border-b border-gray-100">
+                      Search Results
+                    </div>
+                    
+                    {/* Items */}
+                    <div className="max-h-[400px] overflow-y-auto custom-scrollbar">
+                      {filteredResults.map(prod => (
+                        <Link 
+                          to={`/product/${prod.id}`} 
+                          key={prod.id}
+                          onClick={() => {
+                            setIsSearchOpen(false);
+                            setSearchQuery('');
+                            setFilteredResults([]);
+                          }}
+                          className="flex items-center gap-4 p-4 border-b border-gray-50 last:border-0 hover:bg-blue-50/50 transition-colors group"
+                        >
+                          <div className="w-14 h-14 bg-white border border-gray-100 rounded-lg flex items-center justify-center p-1 group-hover:border-blue-200 transition-colors">
+                            <img src={getImageUrl(prod.thumbnail)} alt={prod.name} className="max-w-full max-h-full object-contain" />
+                          </div>
+                          
+                          <div className="flex-1">
+                            <h4 className="text-sm font-bold text-gray-800 line-clamp-1 group-hover:text-blue-600 transition-colors">{prod.name}</h4>
+                            <div className="flex items-center gap-2 mt-1 text-[11px] font-bold text-gray-500">
+                              {prod.brand_details?.name && (
+                                <span className="bg-gray-100 px-2 py-0.5 rounded text-gray-600">{prod.brand_details.name}</span>
+                              )}
+                              {typeof prod.category === 'object' ? prod.category?.name : (categories.find(c => c.id === prod.category)?.name)}
+                            </div>
+                          </div>
+                          
+                          <div className="font-black text-blue-600 text-sm">
+                            ৳{Number(prod.discount_price || prod.price).toLocaleString()}
+                          </div>
+                        </Link>
+                      ))}
+                    </div>
+                    
+                    {/* View All Option */}
+                    <Link 
+                      to={`/search?q=${searchQuery}`}
+                      onClick={() => { setIsSearchOpen(false); setSearchQuery(''); }}
+                      className="block w-full text-center bg-gray-50 hover:bg-blue-600 hover:text-white text-blue-600 text-sm font-bold py-3 transition-colors border-t border-gray-100"
+                    >
+                      View all results for "{searchQuery}"
+                    </Link>
+                  </div>
+                ) : (
+                  <div className="p-8 flex flex-col items-center justify-center text-center">
+                    <div className="w-16 h-16 bg-gray-50 rounded-full flex items-center justify-center mb-3">
+                      <Search size={24} className="text-gray-300" />
+                    </div>
+                    <p className="text-gray-500 font-medium">We couldn't find anything matching "<span className="font-bold text-gray-800">{searchQuery}</span>"</p>
+                    <p className="text-sm text-gray-400 mt-1">Try searching by a different name, brand, or category.</p>
+                  </div>
+                )}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Bottom Row Categories Mega Menu (Hides on Scroll for cleaner look) */}
@@ -364,10 +498,12 @@ const Navbar = () => {
                     <div className="flex justify-between items-center mt-3">
                       <div className="flex items-center border border-gray-200 rounded-md overflow-hidden bg-white shadow-sm">
                         <button onClick={() => decrementQuantity(item.id)} className="px-2.5 py-1 text-gray-500 hover:bg-gray-100 transition-colors font-bold">-</button>
-                        <span className="px-3 text-[13px] font-bold text-gray-700 border-x border-gray-200">{item.quantity}</span>
+                        {/* [পরিবর্তন] NaN ফিক্স করা হয়েছে */}
+                        <span className="px-3 text-[13px] font-bold text-gray-700 border-x border-gray-200">{Number(item.quantity || 0)}</span>
                         <button onClick={() => incrementQuantity(item.id)} className="px-2.5 py-1 text-gray-500 hover:bg-gray-100 transition-colors font-bold">+</button>
                       </div>
-                      <p className="text-blue-600 font-black text-sm">৳{item.currentPrice}</p>
+                      {/* [পরিবর্তন] NaN ফিক্স করা হয়েছে */}
+                      <p className="text-blue-600 font-black text-sm">৳{Number(item.currentPrice || 0).toLocaleString()}</p>
                     </div>
                   </div>
                   <button onClick={() => removeFromCart(item.id)} className="text-gray-300 hover:text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors self-start mt-1">

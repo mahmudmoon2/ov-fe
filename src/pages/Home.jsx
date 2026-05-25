@@ -16,16 +16,19 @@ import { ReviewSection, BlogSection } from '../components/ReviewAndBlogSection';
 import Footer from '../components/Footer';
 
 // ========================================================
-// Reusable Section Wrapper (With Scroll Animation Option)
+// Reusable Section Wrapper (With Minimal Scroll Animation)
 // ========================================================
-const SectionWrapper = ({ children, isBlue, id, aos = "fade-up" }) => {
+const SectionWrapper = ({ children, isBlue, id, aos = "fade-up", delay = "0" }) => {
   return (
     <section 
       id={id} 
       className={`${isBlue ? 'bg-[#F4F9FF]' : 'bg-white'} py-12 md:py-16 border-b border-gray-100/50 w-full overflow-hidden`}
     >
-      {/* data-aos অ্যাট্রিবিউট দিয়ে অ্যানিমেশন ট্রিগার করা হচ্ছে */}
-      <div className="max-w-7xl mx-auto px-4" data-aos={aos}>
+      <div 
+        className="max-w-7xl mx-auto px-4" 
+        data-aos={aos} 
+        data-aos-delay={delay} // ডিলে অ্যাড করা হলো যাতে খুব স্মুথলি আসে
+      >
         {children}
       </div>
     </section>
@@ -39,13 +42,13 @@ const Home = () => {
   const [banners, setBanners] = useState([]);
   const [dynamicSections, setDynamicSections] = useState([]); 
 
-  // Initialize AOS Animation
+  // Initialize Minimal AOS Animation
   useEffect(() => {
     AOS.init({
-      duration: 800, // অ্যানিমেশন কতক্ষণ ধরে হবে (0.8s)
-      offset: 100, // স্ক্রিনে এলিমেন্ট ঢোকার ১০০px পর অ্যানিমেশন শুরু হবে
-      once: true, // স্ক্রল করে উপরে গেলে আবার হাইড হবে না (একবারই অ্যানিমেশন হবে)
-      easing: 'ease-out-cubic',
+      duration: 1000, // অ্যানিমেশন আরেকটু স্লো এবং স্মুথ (1s)
+      offset: 50, // স্ক্রিনে অল্প একটু ঢুকলেই অ্যানিমেশন শুরু হবে
+      once: true, // শুধু একবারই হবে
+      easing: 'ease-in-out', // খুব সফট এবং ক্লিন ইজিং
     });
   }, []);
 
@@ -108,14 +111,13 @@ const Home = () => {
 
         {/* Banner Layout 1: Category এর পরে (50% - 50%) */}
         {categoryBanners.length > 0 && (
-          <SectionWrapper isBlue={false} aos="">
+          <SectionWrapper isBlue={false} aos="fade-up">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 overflow-hidden">
               {categoryBanners.map((banner, index) => (
                 <a 
                   key={banner.id} 
                   href={banner.link || '#'} 
-                  data-aos={index === 0 ? "fade-right" : "fade-left"} // প্রথমটি ডান থেকে, পরেরটি বাম থেকে আসবে
-                  className="block h-56 md:h-64 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+                  className="block h-56 md:h-64 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group"
                 >
                   <img src={banner.image} alt={banner.title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
                 </a>
@@ -125,17 +127,16 @@ const Home = () => {
         )}
 
         {/* 5. Auto Moving Brands */}
-        <SectionWrapper isBlue={true} aos="zoom-in-up">
+        <SectionWrapper isBlue={true} aos="fade-in">
           <BrandAutoSlider brands={brands} />
         </SectionWrapper>
 
         {/* Banner Layout 2: Brands এর পরে (100% Width) */}
         {brandBanner.length > 0 && (
-          <SectionWrapper isBlue={false} aos="">
+          <SectionWrapper isBlue={false} aos="fade-up">
             <a 
               href={brandBanner[0].link || '#'} 
-              data-aos="zoom-in" // এটি জুম হয়ে আসবে
-              className="block h-80 md:h-[400px] lg:h-[450px] w-full rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+              className="block h-80 md:h-[400px] lg:h-[450px] w-full rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group"
             >
               <img src={brandBanner[0].image} alt={brandBanner[0].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
             </a>
@@ -156,19 +157,17 @@ const Home = () => {
 
         {/* Banner Layout 3: Review Section এর আগে (60% - 40%) */}
         {preReviewBanners.length === 2 && (
-          <SectionWrapper isBlue={false} aos="">
+          <SectionWrapper isBlue={false} aos="fade-up">
             <div className="flex flex-col md:flex-row gap-6 overflow-hidden">
               <a 
                 href={preReviewBanners[0].link || '#'} 
-                data-aos="fade-right"
-                className="w-full md:w-[60%] block h-56 md:h-72 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+                className="w-full md:w-[60%] block h-56 md:h-72 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group"
               >
                 <img src={preReviewBanners[0].image} alt={preReviewBanners[0].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               </a>
               <a 
                 href={preReviewBanners[1].link || '#'} 
-                data-aos="fade-left"
-                className="w-full md:w-[40%] block h-56 md:h-72 rounded-2xl overflow-hidden shadow-md hover:shadow-xl transition-shadow group"
+                className="w-full md:w-[40%] block h-56 md:h-72 rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-all duration-500 group"
               >
                 <img src={preReviewBanners[1].image} alt={preReviewBanners[1].title} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
               </a>
